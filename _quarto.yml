@@ -1,5 +1,6 @@
 project:
   type: website
+  output-dir: docs
 
 website:
   title: "lRoyYul"
@@ -10,6 +11,7 @@ website:
         text: Home
       - href: CV.qmd
         text: CV
+  site-url: "https;//lRoyYul.github.io/"
 
 format:
   html:
