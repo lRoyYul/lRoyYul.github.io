@@ -1,0 +1,16 @@
+[
+  {
+    "objectID": "index.html",
+    "href": "index.html",
+    "title": "Welcome to My Homepage",
+    "section": "",
+    "text": "Leyi Yu is a PhD candidate in computer engineering at Case Western Reserve University.\n\n\nCurrently Working on\n\n\nDeveloping a modular therapeutic ride-on car platform with 3D-printed adaptive hand controls and immersive driving games to train cognitive and fine motor skills in children with CP or TBI. This system delivers engaging, low-cost, and personalized therapy by combining outdoor driving with indoor game-based training to improve hand function and executive abilities.\nDeveloping and deploying reinforcement learning strategies on humanoid robots\nStudying an electrical-stimulation-based haptic feedback device and completing its development documentation\n\n\nPrevious project\nDeveloped a hapkit-based multi-modal haptic feedback system integrated with a Unity platform jumping game.\n\n\nEducation\nCase Western Reserve University | Cleveland, OH\nPhD in Computer Engineering | In progress"
+  },
+  {
+    "objectID": "CV.html",
+    "href": "CV.html",
+    "title": "Curriculum Vitae",
+    "section": "",
+    "text": "Download"
+  }
+]
