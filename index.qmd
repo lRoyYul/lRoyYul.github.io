@@ -1,0 +1,52 @@
+---
+title: "Welcome to My Homepage"
+---
+
+```{=html}
+<div class="text-center my-3">
+<img src="images/avatar.jpg"
+       alt="Profile photo"
+       class="rounded-circle img-thumbnail shadow"
+       style="width:160px; height:160px; object-fit:cover;">
+</div>
+
+<div class="d-flex justify-content-center gap-2 my-2">
+<a class="btn btn-outline-light p-2" href="https://www.linkedin.com/in/leyi-yu-b80b45290/" target="_blank" rel="noopener" aria-label="LinkedIn">
+  <i class="bi bi-linkedin" style="font-size:1.5rem;"></i>
+</a>
+<a class="btn btn-outline-light p-2" href="https://github.com/lRoyYul" target="_blank" rel="noopener" aria-label="GitHub">
+  <i class="bi bi-github" style="font-size:1.5rem;"></i>
+</a>
+<a class="btn btn-outline-light p-2" href="mailto:lxy443@case.com" aria-label="Email">
+  <i class="bi bi-envelope-fill" style="font-size:1.5rem;"></i>
+</a>
+</div>
+```
+
+::: {.text-center .my-3}
+Leyi Yu is a PhD candidate in computer engineering at Case Western Reserve University.
+:::
+::: {.section-card}
+**Currently Working on**  
+:::
+::: {.section-card .bullets}
+
+Developing a modular therapeutic ride-on car platform with 3D-printed adaptive hand controls and immersive driving games to train cognitive and fine motor skills in children with CP or TBI. This system delivers engaging, low-cost, and personalized therapy by combining outdoor driving with indoor game-based training to improve hand function and executive abilities.
+
+Developing and deploying reinforcement learning strategies on humanoid robots
+
+Studying an electrical-stimulation-based haptic feedback device and completing its development documentation
+:::
+
+::: {.section-card}
+**Previous project**  
+Developed a hapkit-based multi-modal haptic feedback system integrated with a Unity platform jumping game.
+:::
+
+::: {.section-card}
+**Education**  
+Case Western Reserve University | Cleveland, OH  
+PhD in Computer Engineering | In progress
+:::
+
+
