@@ -1,0 +1,283 @@
+---
+title: "Study 1"
+format: dashboard
+---
+
+# Task B&C
+
+```{r}
+library(readr) 
+library(dplyr)
+library(lubridate)
+library(ggplot2)
+library(tidyr)
+library(purrr)
+library(jsonlite)
+```
+
+```{r}
+df <- read_csv("data/tmdb_5000_movies.csv", show_col_types = FALSE)
+df <- df |>
+  mutate(
+    release_date_parsed = suppressWarnings(ymd(release_date)),
+    release_decade = case_when(
+      year(release_date_parsed) >= 1980 & year(release_date_parsed) < 1990 ~ "1980s",
+      year(release_date_parsed) >= 1990 & year(release_date_parsed) < 2000 ~ "1990s",
+      year(release_date_parsed) >= 2000 & year(release_date_parsed) < 2010 ~ "2000s",
+      year(release_date_parsed) >= 2010 & year(release_date_parsed) < 2020 ~ "2010s",
+      year(release_date_parsed) >= 2020 & year(release_date_parsed) < 2030 ~ "2020s",
+      TRUE ~ NA_character_
+      ),
+     english_group = ifelse(
+      !is.na(original_language) & tolower(original_language) == "en",
+      "English", "Non-English"
+      )
+  ) 
+
+df_filter <- df |>
+  filter(
+    !is.na(release_date_parsed),
+    !is.na(genres), genres != "", genres != "[]",
+    !is.na(revenue), revenue >= 0,
+    !is.na(budget),  budget  >= 0,
+    !is.na(vote_average), vote_average >= 0, vote_average <= 10
+  )
+```
+
+## Task b {layout-ncol=12} 
+
+### result {.tabset column=8}
+
+#### Welch t test
+
+```{r}
+b_ttest <- t.test(
+  vote_average ~ english_group,
+  data = df_filter,
+  conf.level = 0.90
+)
+b_ttest
+```
+
+#### group summary
+
+```{r}
+df_filter |>
+  group_by(english_group) |>
+  summarize(
+    n   = n(),
+    mean = mean(vote_average),
+    sd   = sd(vote_average),
+    .groups = "drop"
+  )
+```
+
+#### density plot
+
+```{r}
+df_filter |>
+  ggplot(aes(vote_average, fill = english_group)) +
+  geom_density(alpha = 0.35) +
+  labs(x = "Vote Average", y = "Density", fill = "Group")
+```
+### Task b explaination {column=4}
+
+This chunk compares mean user ratings between English and Non-English films using a Welch two-sample t-test with a 90% confidence interval. In the filtered data, the English group contains 4,477 films with an average rating of about 6.09 (sd ≈ 1.13), whereas the Non-English group contains 298 films with an average rating of about 6.49 (sd ≈ 1.27). The test statistic is approximately −5.37 with roughly 329 degrees of freedom, yielding a p-value on the order of 10⁻⁷. The 90% confidence interval for the mean difference (English minus Non-English) is roughly \[−0.53, −0.28\], which excludes zero. Taken together with the density plot—which shows the Non-English distribution shifted to the right—these results indicate that Non-English films receive modestly but credibly higher average ratings than English-language films, and the magnitude of the difference is on the order of four-tenths of a rating point on a 0–10 scale.
+
+
+## Task c {layout-ncol=12}
+
+### result {.tabset column=8}
+
+#### graph
+
+```{r}
+df_c <- df_filter |>
+  mutate(log_revenue = log1p(revenue)) |>
+  filter(!is.na(release_decade)) |>
+  group_by(release_decade) |>
+  mutate(n_decade = n()) |>
+  ungroup() 
+
+df_c |>
+  ggplot(aes(x = release_decade, y = log_revenue)) +
+  geom_boxplot() +
+  labs(x = "Release decade", y = "log(Revenue + 1)",
+       title = "Distribution of log(Revenue+1) by decade")
+```
+#### summary
+```{r}
+df_c |>
+  count(release_decade, sort = TRUE)
+```
+
+#### ANOVA& Tukey
+
+```{r}
+
+fit_c <- aov(log_revenue ~ release_decade, data = df_c)
+summary(fit_c)
+
+TukeyHSD(fit_c, conf.level = 0.90)
+
+tbl_c <- df_c |>
+  group_by(release_decade) |>
+  summarize(
+    n    = n(),
+    mean = mean(log_revenue),
+    sd   = sd(log_revenue),
+    .groups = "drop"
+  )
+tbl_c
+```
+### Task c explaination {column=4}
+
+This block examines decade differences in revenue on a log scale. The boxplot of log(Revenue + 1) by release_decade suggests modest shifts across decades, and the one-way ANOVA formalizes that pattern by testing equality of decade means. Tukey’s 90% confidence intervals then identify which specific decade pairs differ; interpret any pair whose interval excludes zero as a credible difference at the assignment’s 90% level, and read the sign of the contrast to determine which decade has the higher mean.
+
+# Task D&E
+
+## Task d
+### result {.tabset}
+#### summary
+```{r}
+df_d <- df_filter |>
+  filter(!is.na(english_group)) |>
+  mutate(profit = as.integer(revenue >2.4* budget)) |>
+  select(english_group, profit)
+
+tab_wide <- df_d |>
+  mutate(english_group = factor(english_group, levels = c("English","Non-English"))) |>
+  count(english_group, profit) |>
+  pivot_wider(names_from = profit, values_from = n, values_fill = 0) |>
+  rename(not_profit = `0`, profit = `1`) |>
+  arrange(english_group)
+
+tab_wide 
+```
+#### test
+```{r}
+
+a <- tab_wide |> filter(english_group == "English")     |> pull(profit)
+b <- tab_wide |> filter(english_group == "English")     |> pull(not_profit)
+c <- tab_wide |> filter(english_group == "Non-English") |> pull(profit)
+d <- tab_wide |> filter(english_group == "Non-English") |> pull(not_profit)
+
+
+c(a=a, b=b, c=c, d=d)
+
+
+p1 <- a/(a+b)  
+p2 <- c/(c+d)   
+
+rd_test <- prop.test(x = c(a,c), n = c(a+b, c+d), conf.level = 0.90, correct = TRUE)
+rd_est  <- unname(p1 - p2)
+rd_ci   <- unname(rd_test$conf.int)
+
+RR <- p1/p2
+se_logRR <- sqrt(1/a - 1/(a+b) + 1/c - 1/(c+d))
+z <- qnorm(0.95)  
+RR_ci <- exp(log(RR) + c(-1,1)*z*se_logRR)
+
+or_test <- fisher.test(matrix(c(a,b,c,d), nrow = 2), conf.level = 0.90)
+OR <- unname(or_test$estimate)
+OR_ci <- unname(or_test$conf.int)
+
+tibble::tibble(
+  metric   = c("Risk_English (p1)", "Risk_NonEnglish (p2)", "RD = p1 - p2", "RR = p1/p2", "OR"),
+  estimate = c(p1, p2, rd_est, RR, OR),
+  ci90_lwr = c(NA, NA, rd_ci[1], RR_ci[1], OR_ci[1]),
+  ci90_upr = c(NA, NA, rd_ci[2], RR_ci[2], OR_ci[2])
+)
+```
+#### proportion graph
+```{r}
+df_d |>
+  mutate(profit = factor(profit, levels = c(0,1), labels = c("Not profit","Profit"))) |>
+  count(english_group, profit) |>
+  group_by(english_group) |>
+  mutate(pct = n / sum(n)) |>
+  ungroup() |>
+  ggplot(aes(x = english_group, y = pct, fill = profit)) +
+  geom_col(position = "fill") +
+  scale_y_continuous(labels = scales::percent) +
+  labs(x = "Group", y = "Share", fill = "", 
+       title = "Profit vs Not profit proportion by group")
+
+```
+### task d expalianation
+This block evaluates whether profitability differs by language using a 2×2 table with profit = I(revenue \> budget) as the outcome and english_group as the exposure. We report three effect measures with 90% confidence intervals—risk difference (RD), relative risk (RR), and odds ratio (OR). A 90% CI for RD that excludes zero (and RR/OR intervals that exceed one) indicates English-language films have a credibly higher probability of being profitable; if the intervals include the null values, the data do not provide sufficient evidence of a difference at the 90% level.
+
+## Task e
+### result {.tabset}
+#### heatmap
+```{r}
+top_k <- 5
+
+safe_parse_genres <- function(s) {
+  if (is.na(s) || s == "" || s == "[]") return(list())
+  out <- tryCatch(jsonlite::fromJSON(s), error = function(e) NULL)
+  if (is.null(out)) return(list())
+  if (is.data.frame(out) && "name" %in% names(out)) {
+    as.character(out$name)
+  } else if (is.list(out)) {
+    unlist(lapply(out, function(x) tryCatch(as.character(x$name), error = function(e) NA_character_)), use.names = FALSE)
+  } else character()
+}
+
+df_gen_long <- df_filter |>
+  filter(!is.na(release_decade)) |>
+  mutate(genres_vec = purrr::map(genres, safe_parse_genres)) |>
+  tidyr::unnest_longer(genres_vec, values_to = "genre") |>
+  filter(!is.na(genre), genre != "")
+
+top_genres <- df_gen_long |>
+  count(genre, sort = TRUE) |>
+  slice_head(n = top_k) |>
+  pull(genre)
+
+heat_rev_mean <- df_gen_long |>
+  filter(genre %in% top_genres) |>
+  mutate(
+    release_decade = factor(release_decade, levels = c("1980s","1990s","2000s","2010s","2020s")),
+    log_revenue = log1p(revenue)
+  ) |>
+  group_by(release_decade, genre) |>
+  summarize(mean_log_rev = mean(log_revenue), .groups = "drop")
+
+heat_rev_mean |>
+  ggplot(aes(x = release_decade, y = genre, fill = mean_log_rev)) +
+  geom_tile() +
+  labs(x = "Decade", y = "Genre (TopK)",
+       fill = "Mean log(Rev+1)",
+       title = "Mean log(Revenue+1) by decade × genre")
+
+xtab_counts <- df_gen_long |>
+  filter(genre %in% top_genres) |>
+  count(release_decade, genre) |>
+  tidyr::pivot_wider(names_from = genre, values_from = n, values_fill = 0) |>
+  arrange(factor(release_decade, levels = c("1980s","1990s","2000s","2010s","2020s")))
+```
+#### Counts table
+```{r}
+xtab_counts  
+```
+#### Row wise
+```{r}
+
+xtab_rowprop <- xtab_counts |>
+  tibble::column_to_rownames("release_decade") |>
+  as.matrix() |>
+  prop.table(margin = 1) |>
+  as.data.frame() |>
+  tibble::rownames_to_column("release_decade")
+
+xtab_rowprop 
+
+mat_counts <- xtab_counts |>
+  tibble::column_to_rownames("release_decade") |>
+  as.matrix()
+
+chisq_res <- chisq.test(mat_counts) 
+```
+### Task E explaination
+This chunk expands multi-label genres into a long format so each film contributes to all of its tags, selects the Top-K genres by overall frequency, and then maps color to the mean of log(Revenue + 1) within each decade–genre cell. Darker tiles indicate decade–genre combinations associated with higher average revenues on the log scale. The follow-up cross-tabulation reports counts by decade and genre together with row-wise proportions, which show how the composition of popular genres shifts over time (for example, Drama typically occupies the largest share and Comedy the second largest, while smaller genres fluctuate in relative weight). A Pearson chi-square test applied to the count table assesses whether decade and genre are independent; the test rejects independence at conventional levels, implying that the distribution of genres changes across decades. Because the heatmap summarizes average log revenue rather than counts, and because each film contributes to all of its genres, these EDA results should be interpreted descriptively: they highlight where revenue tends to be stronger without implying mutually exclusive group membership or causal effects.

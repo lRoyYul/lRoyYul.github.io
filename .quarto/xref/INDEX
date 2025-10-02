@@ -10,5 +10,18 @@
   },
   "CV.qmd": {
     "CV.html": "e1d4666d"
+  },
+  "dashboard.qmd": {
+    "dashboard.html": "6ee00b9e",
+    "dashboard.tex": "95a5fb4c"
+  },
+  "study2.qmd": {
+    "study2.html": "542062f4"
+  },
+  "dash1.qmd": {
+    "dash1.html": "52e7505e"
+  },
+  "dash2.qmd": {
+    "dash2.html": "fd8021d2"
   }
 }

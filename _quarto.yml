@@ -11,6 +11,11 @@ website:
         text: Home
       - href: CV.qmd
         text: CV
+      - href: dash1.qmd
+        text: Study1
+      - href: dash2.qmd
+        text: Study2
+      
   site-url: "https;//lRoyYul.github.io/"
 
 format:

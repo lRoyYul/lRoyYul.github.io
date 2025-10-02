@@ -1,0 +1,236 @@
+---
+title: "study2"
+format: html
+---
+
+```{r}
+library(readr)
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(jsonlite)
+library(lubridate)
+library(mice)
+library(broom)
+library(ggplot2)
+library(scales)
+df <- read_csv("data/tmdb_5000_movies.csv", show_col_types = FALSE)
+df <- df |>
+  mutate(
+    release_date_parsed = suppressWarnings(ymd(release_date)),
+    release_year = year(release_date_parsed)
+  )
+  
+df_filter <- df |>
+  filter(
+    !is.na(release_date_parsed),
+    !is.na(release_year),
+    release_year >= 1980,
+    release_year < 2020,                
+    !is.na(genres), genres != "", genres != "[]",
+    !is.na(revenue), revenue >= 0,
+    !is.na(budget),  budget  >= 0,
+    !is.na(vote_average), vote_average >= 0, vote_average <= 10
+  ) |>
+  mutate(
+    release_decade = case_when(
+      release_year >= 1980 & release_year < 1990 ~ "1980s",
+      release_year >= 1990 & release_year < 2000 ~ "1990s",
+      release_year >= 2000 & release_year < 2010 ~ "2000s",
+      release_year >= 2010 & release_year < 2020 ~ "2010s",
+      TRUE ~ NA_character_  
+    ),
+    english_group = ifelse(
+      !is.na(original_language) & tolower(original_language) == "en",
+      "English", "Non-English"
+    )
+  )
+```
+
+```{r}
+s2_base <- df_filter |>
+  mutate(
+    log_revenue = log1p(revenue),
+    log_budget  = log1p(budget),
+    log_votes   = log1p(vote_count)
+  ) |>
+  select(
+    id,                   
+    log_revenue,             
+    vote_average,           
+    log_budget, runtime, log_votes, popularity,   
+    release_decade, english_group                   
+  ) |>
+  filter(is.finite(log_revenue), !is.na(vote_average))
+
+nrow(s2_base); s2_base |> names()
+```
+
+```{r}
+s2_key  <- s2_base |> select(id, log_revenue, vote_average)
+s2_ctrl <- s2_base |> select(-id, -log_revenue, -vote_average)
+
+miss_before <- sapply(s2_ctrl, \(x) sum(is.na(x)))
+
+imp <- mice(s2_ctrl, m = 1, method = "pmm", maxit = 5, printFlag = FALSE)
+s2_ctrl_imp <- complete(imp, 1)
+
+s2_imp <- dplyr::bind_cols(s2_key, s2_ctrl_imp)
+
+miss_after <- sapply(s2_ctrl_imp, \(x) sum(is.na(x)))
+impute_report <- tibble::tibble(
+  variable = names(miss_before),
+  missing_before = as.integer(miss_before),
+  missing_after  = as.integer(miss_after),
+  imputed_n      = pmax(missing_before - missing_after, 0L)
+)
+impute_report
+nrow(s2_imp)
+```
+
+```{r}
+set.seed(2025)
+training_sample <- s2_imp |> slice_sample(prop = 0.75)
+test_sample     <- anti_join(s2_imp, training_sample, by = "id")
+
+training_sample <- training_sample |>
+  mutate(
+    release_decade = factor(release_decade, levels = c("1980s","1990s","2000s","2010s","2020s")),
+    english_group  = factor(english_group,  levels = c("English","Non-English"))
+  )
+test_sample <- test_sample |>
+  mutate(
+    release_decade = factor(release_decade, levels = levels(training_sample$release_decade)),
+    english_group  = factor(english_group,  levels = levels(training_sample$english_group))
+  )
+
+nrow(training_sample); nrow(test_sample)
+
+```
+
+```{r}
+
+library(broom)
+
+fit_full <- lm(
+  log_revenue ~ vote_average + log_budget + runtime + log_votes +
+    popularity + release_decade + english_group,
+  data = training_sample
+)
+
+fit_subset <- lm(
+  log_revenue ~ vote_average,
+  data = training_sample
+)
+
+full_ci90   <- tidy(fit_full,   conf.int = TRUE, conf.level = 0.90)
+subset_ci90 <- tidy(fit_subset, conf.int = TRUE, conf.level = 0.90)
+
+full_ci90   |> filter(term == "vote_average")
+subset_ci90 |> filter(term == "vote_average")
+
+
+```
+```{r}
+pred_full_log   <- predict(fit_full,   newdata = test_sample)
+pred_subset_log <- predict(fit_subset, newdata = test_sample)
+
+rmse_log <- function(y, yhat) sqrt(mean((y - yhat)^2))
+mae_log  <- function(y, yhat) mean(abs(y - yhat))
+r2_log   <- function(y, yhat) cor(y, yhat)^2
+
+log_metrics <- tibble::tibble(
+  model = c("Full","Subset"),
+  RMSE_log = c(rmse_log(test_sample$log_revenue, pred_full_log),
+               rmse_log(test_sample$log_revenue, pred_subset_log)),
+  MAE_log  = c(mae_log(test_sample$log_revenue, pred_full_log),
+               mae_log(test_sample$log_revenue, pred_subset_log)),
+  R2_log   = c(r2_log(test_sample$log_revenue, pred_full_log),
+               r2_log(test_sample$log_revenue, pred_subset_log))
+)
+
+smear_full   <- mean(exp(residuals(fit_full)))
+smear_subset <- mean(exp(residuals(fit_subset)))
+
+rmse <- function(y, yhat) sqrt(mean((y - yhat)^2))
+mae  <- function(y, yhat) mean(abs(y - yhat))
+r2   <- function(y, yhat) cor(y, yhat)^2
+
+log_metrics
+
+```
+
+```{r}
+viz_test <- tibble::tibble(
+  y_log   = test_sample$log_revenue,
+  Full    = pred_full_log,
+  Subset  = pred_subset_log
+) |>
+  tidyr::pivot_longer(cols = c(Full, Subset),
+                      names_to = "model", values_to = "yhat_log") |>
+  filter(is.finite(yhat_log))  # 以防万一
+
+viz_test |>
+  ggplot(aes(x = y_log, y = yhat_log, color = model)) +
+  geom_abline(slope = 1, intercept = 0, linetype = 2) +
+  geom_point(alpha = 0.35) +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(
+    x = "Observed log(Revenue + 1)",
+    y = "Predicted log(Revenue + 1)",
+    color = "Model",
+    title = "Test-set observed vs predicted (log scale)"
+  )
+
+```
+```{r}
+library(dplyr)
+library(ggplot2)
+library(broom)
+
+ci_full   <- tidy(fit_full,   conf.int = TRUE, conf.level = 0.90) |>
+  filter(term == "vote_average") |>
+  mutate(model = "Full")
+ci_subset <- tidy(fit_subset, conf.int = TRUE, conf.level = 0.90) |>
+  filter(term == "vote_average") |>
+  mutate(model = "Subset")
+
+ci_vote <- dplyr::bind_rows(ci_full, ci_subset)
+
+ci_vote |>
+  ggplot(aes(x = model, y = estimate)) +
+  geom_pointrange(aes(ymin = conf.low, ymax = conf.high)) +
+  geom_hline(yintercept = 0, linetype = 2) +
+  coord_flip() +
+  labs(
+    x = NULL,
+    y = "Coefficient for vote_average (log scale, 90% CI)",
+    title = "Key predictor (vote_average): estimate and 90% CI"
+  )
+
+```
+
+```{r}
+df_diag <- tibble::tibble(
+  fitted   = fitted(fit_full),
+  resid    = residuals(fit_full),
+  stdresid = rstandard(fit_full)
+)
+
+p_resid <- df_diag |>
+  ggplot(aes(x = fitted, y = resid)) +
+  geom_hline(yintercept = 0, linetype = 2) +
+  geom_point(alpha = 0.35) +
+  geom_smooth(se = FALSE) +
+  labs(x = "Fitted log(Revenue + 1)", y = "Residual",
+       title = "Residuals vs Fitted (Full model)")
+
+p_qq <- df_diag |>
+  ggplot(aes(sample = stdresid)) +
+  stat_qq() +
+  stat_qq_line() +
+  labs(x = "Theoretical Quantiles", y = "Standardized Residuals",
+       title = "Normal Q–Q plot (Full model)")
+
+p_resid; p_qq
+```
