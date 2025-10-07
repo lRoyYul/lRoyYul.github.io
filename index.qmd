@@ -26,11 +26,12 @@ title: "Welcome to My Homepage"
 ::: {.text-center .my-3}
 Leyi Yu is a PhD candidate in computer engineering at Case Western Reserve University.
 :::
-::: {.section-card}
-**Currently Working on**  
-:::
-::: {.section-card .bullets}
 
+::: section-card
+**Currently Working on**
+:::
+
+::: {.section-card .bullets}
 Developing a modular therapeutic ride-on car platform with 3D-printed adaptive hand controls and immersive driving games to train cognitive and fine motor skills in children with CP or TBI. This system delivers engaging, low-cost, and personalized therapy by combining outdoor driving with indoor game-based training to improve hand function and executive abilities.
 
 Developing and deploying reinforcement learning strategies on humanoid robots
@@ -38,15 +39,13 @@ Developing and deploying reinforcement learning strategies on humanoid robots
 Studying an electrical-stimulation-based haptic feedback device and completing its development documentation
 :::
 
-::: {.section-card}
-**Previous project**  
+::: section-card
+**Previous project**\
 Developed a hapkit-based multi-modal haptic feedback system integrated with a Unity platform jumping game.
 :::
 
-::: {.section-card}
-**Education**  
-Case Western Reserve University | Cleveland, OH  
-PhD in Computer Engineering | In progress
+::: section-card
+**Education**\
+Case Western Reserve University \| Cleveland, OH\
+PhD in Computer Engineering \| In progress
 :::
-
-

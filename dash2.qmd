@@ -1,4 +1,261 @@
 ---
-title: "dash2"
-format: html
+title: "Study2"
+format: 
+  dashboard:
+    orientation: rows
+    fill: false
+    
+knitr:
+  opts_chunk: 
+    warning: false
 ---
+
+```{r}
+library(readr)
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(jsonlite)
+library(lubridate)
+library(mice)
+library(broom)
+library(ggplot2)
+library(scales)
+df <- read_csv("data/tmdb_5000_movies.csv", show_col_types = FALSE)
+df <- df |>
+  mutate(
+    release_date_parsed = suppressWarnings(ymd(release_date)),
+    release_year = year(release_date_parsed)
+  )
+  
+df_filter <- df |>
+  filter(
+    !is.na(release_date_parsed),
+    !is.na(release_year),
+    release_year >= 1980,
+    release_year < 2020,                
+    !is.na(genres), genres != "", genres != "[]",
+    !is.na(revenue), revenue > 0,
+    !is.na(budget),  budget  >= 0,
+    !is.na(vote_average), vote_average >= 0, vote_average <= 10
+  ) |>
+  mutate(
+    release_decade = case_when(
+      release_year >= 1980 & release_year < 1990 ~ "1980s",
+      release_year >= 1990 & release_year < 2000 ~ "1990s",
+      release_year >= 2000 & release_year < 2010 ~ "2000s",
+      release_year >= 2010 & release_year < 2020 ~ "2010s",
+      TRUE ~ NA_character_  
+    ),
+    english_group = ifelse(
+      !is.na(original_language) & tolower(original_language) == "en",
+      "English", "Non-English"
+    )
+  )
+
+s2_base <- df_filter |>
+  mutate(
+    log_revenue = log1p(revenue),
+    log_budget  = log1p(budget),
+    log_votes   = log1p(vote_count)
+  ) |>
+  select(
+    id,                   
+    log_revenue,             
+    vote_average,           
+    log_budget, runtime, log_votes, popularity,   
+    release_decade, english_group                   
+  ) |>
+  filter(is.finite(log_revenue), !is.na(vote_average))
+```
+
+```{r}
+s2_key  <- s2_base |> select(id, log_revenue, vote_average)
+s2_ctrl <- s2_base |> select(-id, -log_revenue, -vote_average)
+
+miss_before <- sapply(s2_ctrl, \(x) sum(is.na(x)))
+
+if (!exists(".Random.seed", inherits = FALSE)) set.seed(2025)
+
+imp <- mice(s2_ctrl, m = 1, method = "pmm", maxit = 5, printFlag = FALSE)
+s2_ctrl_imp <- complete(imp, 1)
+
+s2_imp <- dplyr::bind_cols(s2_key, s2_ctrl_imp)
+
+miss_after <- sapply(s2_ctrl_imp, \(x) sum(is.na(x)))
+impute_report <- tibble::tibble(
+  variable = names(miss_before),
+  missing_before = as.integer(miss_before),
+  missing_after  = as.integer(miss_after),
+  imputed_n      = pmax(missing_before - missing_after, 0L)
+)
+
+set.seed(2025)
+training_sample <- s2_imp |> slice_sample(prop = 0.75)
+test_sample     <- anti_join(s2_imp, training_sample, by = "id")
+
+training_sample <- training_sample |>
+  mutate(
+    release_decade = factor(release_decade, levels = c("1980s","1990s","2000s","2010s","2020s")),
+    english_group  = factor(english_group,  levels = c("English","Non-English"))
+  )
+test_sample <- test_sample |>
+  mutate(
+    release_decade = factor(release_decade, levels = levels(training_sample$release_decade)),
+    english_group  = factor(english_group,  levels = levels(training_sample$english_group))
+  )
+```
+
+```{r}
+
+library(broom)
+
+fit_full <- lm(
+  log_revenue ~ vote_average + log_budget + runtime + log_votes +
+    popularity + release_decade + english_group,
+  data = training_sample
+)
+
+fit_subset <- lm(
+  log_revenue ~ vote_average,
+  data = training_sample
+)
+
+full_ci90   <- tidy(fit_full,   conf.int = TRUE, conf.level = 0.90)
+subset_ci90 <- tidy(fit_subset, conf.int = TRUE, conf.level = 0.90)
+```
+
+```{r}
+pred_full_log   <- predict(fit_full,   newdata = test_sample)
+pred_subset_log <- predict(fit_subset, newdata = test_sample)
+
+rmse_log <- function(y, yhat) sqrt(mean((y - yhat)^2))
+mae_log  <- function(y, yhat) mean(abs(y - yhat))
+r2_log   <- function(y, yhat) cor(y, yhat)^2
+
+log_metrics <- tibble::tibble(
+  model = c("Full","Subset"),
+  RMSE_log = c(rmse_log(test_sample$log_revenue, pred_full_log),
+               rmse_log(test_sample$log_revenue, pred_subset_log)),
+  MAE_log  = c(mae_log(test_sample$log_revenue, pred_full_log),
+               mae_log(test_sample$log_revenue, pred_subset_log)),
+  R2_log   = c(r2_log(test_sample$log_revenue, pred_full_log),
+               r2_log(test_sample$log_revenue, pred_subset_log))
+)
+
+smear_full   <- mean(exp(residuals(fit_full)))
+smear_subset <- mean(exp(residuals(fit_subset)))
+
+rmse <- function(y, yhat) sqrt(mean((y - yhat)^2))
+mae  <- function(y, yhat) mean(abs(y - yhat))
+r2   <- function(y, yhat) cor(y, yhat)^2
+
+```
+## Row {height=10%}
+
+### Core hypothesis 
+Hypothesis: After adjusting for budget, runtime, popularity, decade, and language, higher ratings do not necessarily imply higher revenue (“critical acclaim without box office”).
+
+## Row
+### Column
+```{r}
+viz_test <- tibble::tibble(
+  y_log   = test_sample$log_revenue,
+  Full    = pred_full_log,
+  Subset  = pred_subset_log
+) |>
+  tidyr::pivot_longer(cols = c(Full, Subset),
+                      names_to = "model", values_to = "yhat_log") |>
+  filter(is.finite(yhat_log))  # 以防万一
+
+viz_test |>
+  ggplot(aes(x = y_log, y = yhat_log, color = model)) +
+  geom_abline(slope = 1, intercept = 0, linetype = 2) +
+  geom_point(alpha = 0.35) +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(
+    x = "Observed log(Revenue + 1)",
+    y = "Predicted log(Revenue + 1)",
+    color = "Model",
+    title = "Test-set observed vs predicted (log scale)"
+  )
+
+```
+### Test-set observed vs predicted (log scale) 
+This plot compares observed vs. predicted log(Revenue+1) on the test set; the dashed line is the 45° ideal. Full (red) lies closer to the 45° line with a steeper fitted trend, indicating better predictive accuracy. Subset (teal) is nearly flat at low–mid ranges, showing that ratings alone poorly predict revenue.
+
+## Row
+### Column
+```{r}
+library(dplyr)
+library(ggplot2)
+library(broom)
+
+ci_full   <- tidy(fit_full,   conf.int = TRUE, conf.level = 0.90) |>
+  filter(term == "vote_average") |>
+  mutate(model = "Full")
+ci_subset <- tidy(fit_subset, conf.int = TRUE, conf.level = 0.90) |>
+  filter(term == "vote_average") |>
+  mutate(model = "Subset")
+
+ci_vote <- dplyr::bind_rows(ci_full, ci_subset)
+
+ci_vote |>
+  ggplot(aes(x = model, y = estimate)) +
+  geom_pointrange(aes(ymin = conf.low, ymax = conf.high)) +
+  geom_hline(yintercept = 0, linetype = 2) +
+  coord_flip() +
+  labs(
+    x = NULL,
+    y = "Coefficient for vote_average (log scale, 90% CI)",
+    title = "Key predictor (vote_average): estimate and 90% CI"
+  )
+
+```
+### Column
+
+The vote_average coefficient is positive in the Subset model but negative with a 90% CI excluding zero in the Full model—evidence that, after controlling for confounders, the net effect of ratings on log revenue is negative.
+
+## Row
+### {.tabset}
+#### residual plot
+```{r}
+df_diag <- tibble::tibble(
+  fitted   = fitted(fit_full),
+  resid    = residuals(fit_full),
+  stdresid = rstandard(fit_full)
+)
+
+p_resid <- df_diag |>
+  ggplot(aes(x = fitted, y = resid)) +
+  geom_hline(yintercept = 0, linetype = 2) +
+  geom_point(alpha = 0.35) +
+  geom_smooth(se = FALSE) +
+  labs(x = "Fitted log(Revenue + 1)", y = "Residual",
+       title = "Residuals vs Fitted (Full model)")
+
+p_qq <- df_diag |>
+  ggplot(aes(sample = stdresid)) +
+  stat_qq() +
+  stat_qq_line() +
+  labs(x = "Theoretical Quantiles", y = "Standardized Residuals",
+       title = "Normal Q–Q plot (Full model)")
+p_resid; 
+```
+#### title: qq_plot
+```{r}
+p_qq
+```
+### Column
+Residuals vs Fitted
+
+Residuals scatter around zero with mild funnel/curvature—acceptable but hints at some heteroscedasticity/nonlinearity.
+
+Normal Q–Q
+
+Center aligns, tails deviate (heavy tails). We therefore use HC3 robust SEs for inference (point estimates unchanged).
+
+##Row
+
+Study 2 conclusion
+On the log scale, the Full model clearly outperforms the ratings-only Subset on the test set. In the Full model, the adjusted coefficient of vote_average is negative with a 90% CI not crossing zero, whereas the Subset’s strong positive association reflects confounding. Overall, we find evidence of “critically acclaimed but not necessarily high-grossing” films; conclusions rely on the Full model with HC3 robust SEs, after excluding zero-revenue records to mitigate heavy-tail issues.

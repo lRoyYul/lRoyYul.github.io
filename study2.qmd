@@ -131,6 +131,7 @@ subset_ci90 |> filter(term == "vote_average")
 
 
 ```
+
 ```{r}
 pred_full_log   <- predict(fit_full,   newdata = test_sample)
 pred_subset_log <- predict(fit_subset, newdata = test_sample)
@@ -183,6 +184,7 @@ viz_test |>
   )
 
 ```
+
 ```{r}
 library(dplyr)
 library(ggplot2)

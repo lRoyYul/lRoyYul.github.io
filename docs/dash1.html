@@ -232,7 +232,12 @@ sample estimates:
 grid-auto-rows: minmax(0, 1fr);">
 <div class="card html-fill-item html-fill-container bslib-card" data-fill="false" data-bslib-card-init="" data-require-bs-caller="card()" data-full-screen="false">
 <div class="card-body html-fill-item html-fill-container">
-<p>This chunk compares mean user ratings between English and Non-English films using a Welch two-sample t-test with a 90% confidence interval. In the filtered data, the English group contains 4,477 films with an average rating of about 6.09 (sd ≈ 1.13), whereas the Non-English group contains 298 films with an average rating of about 6.49 (sd ≈ 1.27). The test statistic is approximately −5.37 with roughly 329 degrees of freedom, yielding a p-value on the order of 10⁻⁷. The 90% confidence interval for the mean difference (English minus Non-English) is roughly [−0.53, −0.28], which excludes zero. Taken together with the density plot—which shows the Non-English distribution shifted to the right—these results indicate that Non-English films receive modestly but credibly higher average ratings than English-language films, and the magnitude of the difference is on the order of four-tenths of a rating point on a 0–10 scale.</p>
+<strong>What you’re seeing</strong>
+<p>We compare mean user ratings between English and Non-English films with a Welch two-sample t-test (90% CI).</p>
+<strong>How to read it</strong>
+<p>If the 90% CI for (English − Non-English) excludes 0, the group means differ credibly. The density plot shows where each group’s ratings concentrate.</p>
+<strong>Takeaway</strong>
+<p>Ratings differences are modest in size but can be statistically meaningful. Direction = sign of the mean difference; magnitude ≈ fraction of a rating point (0–10 scale).</p>
 </div>
 <bslib-tooltip placement="auto" bsoptions="[]" data-require-bs-version="5" data-require-bs-caller="tooltip()">
     <template>Expand</template>
@@ -341,7 +346,11 @@ $release_decade
 <div class="html-fill-item html-fill-container bslib-grid" style="display: grid; grid-template-rows: minmax(3em, max-content); grid-auto-columns: minmax(0, 1fr);">
 <div class="card html-fill-item html-fill-container bslib-card" data-fill="false" data-bslib-card-init="" data-require-bs-caller="card()" data-full-screen="false">
 <div class="card-body html-fill-item html-fill-container">
-<p>This block examines decade differences in revenue on a log scale. The boxplot of log(Revenue + 1) by release_decade suggests modest shifts across decades, and the one-way ANOVA formalizes that pattern by testing equality of decade means. Tukey’s 90% confidence intervals then identify which specific decade pairs differ; interpret any pair whose interval excludes zero as a credible difference at the assignment’s 90% level, and read the sign of the contrast to determine which decade has the higher mean.</p>
+<strong>What you’re seeing</strong>
+<p>Boxplots of log(Revenue+1) by decade, followed by a one-way ANOVA and Tukey 90% CIs for pairwise contrasts.</p>
+<strong>How to read it</strong>
+<p>ANOVA tells you whether any decade means differ. Tukey intervals show which pairs differ; intervals not crossing 0 indicate a credible gap and the sign shows which decade is higher.</p>
+<p><strong>Takeaway</strong> Revenue levels on the log scale shift across decades. Use Tukey results to pinpoint the decades driving the difference.</p>
 </div>
 <bslib-tooltip placement="auto" bsoptions="[]" data-require-bs-version="5" data-require-bs-caller="tooltip()">
     <template>Expand</template>
@@ -354,7 +363,7 @@ $release_decade
 </div>
 </div>
 <div id="task-de" class="dashboard-page tab-pane grid-skip html-fill-item html-fill-container" data-orientation="rows" aria-labelledby="tab-task-de">
-<div class="html-fill-item html-fill-container bslib-grid" style="display: grid; grid-template-rows: minmax(3em, 1fr) minmax(3em, 1fr); grid-auto-columns: minmax(0, 1fr);">
+<div class="html-fill-item html-fill-container bslib-grid" style="display: grid; grid-template-rows: minmax(3em, 50fr) minmax(3em, 50fr); grid-auto-columns: minmax(0, 1fr);">
 <div class="html-fill-item html-fill-container bslib-grid" style="display: grid; grid-template-columns: minmax(3em, 1fr) minmax(3em, 1fr);
 grid-auto-rows: minmax(0, 1fr);">
 <div class="card tabset html-fill-item html-fill-container bslib-card" data-bslib-card-init="" data-require-bs-caller="card()" data-full-screen="false">
@@ -518,7 +527,7 @@ grid-auto-rows: minmax(0, 1fr);">
 <div class="html-fill-item html-fill-container bslib-grid" style="display: grid; grid-template-rows: minmax(3em, max-content); grid-auto-columns: minmax(0, 1fr);">
 <div class="card html-fill-item html-fill-container bslib-card" data-fill="false" data-bslib-card-init="" data-require-bs-caller="card()" data-full-screen="false">
 <div class="card-body html-fill-item html-fill-container">
-<p>This chunk expands multi-label genres into a long format so each film contributes to all of its tags, selects the Top-K genres by overall frequency, and then maps color to the mean of log(Revenue + 1) within each decade–genre cell. Darker tiles indicate decade–genre combinations associated with higher average revenues on the log scale. The follow-up cross-tabulation reports counts by decade and genre together with row-wise proportions, which show how the composition of popular genres shifts over time (for example, Drama typically occupies the largest share and Comedy the second largest, while smaller genres fluctuate in relative weight). A Pearson chi-square test applied to the count table assesses whether decade and genre are independent; the test rejects independence at conventional levels, implying that the distribution of genres changes across decades. Because the heatmap summarizes average log revenue rather than counts, and because each film contributes to all of its genres, these EDA results should be interpreted descriptively: they highlight where revenue tends to be stronger without implying mutually exclusive group membership or causal effects.</p>
+<p>This chunk converts multi-label genres to long form (each film counted under all its tags), selects Top-K genres by overall frequency, and draws a heatmap of mean log(Revenue+1) for each decade × genre cell—darker tiles indicate higher averages. A follow-up cross-tab with row-wise proportions shows that genre mix shifts across decades, and a Pearson chi-square on the counts rejects independence, implying composition changes over time. Because the heatmap summarizes means (not counts) and films appear under multiple tags, treat these patterns as descriptive, not causal or mutually exclusive.</p>
 </div>
 <bslib-tooltip placement="auto" bsoptions="[]" data-require-bs-version="5" data-require-bs-caller="tooltip()">
     <template>Expand</template>

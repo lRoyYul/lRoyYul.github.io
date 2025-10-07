@@ -1,6 +1,8 @@
 ---
 title: "Study 1"
-format: dashboard
+format: 
+  dashboard:
+    orientation: rows
 ---
 
 # Task B&C
@@ -44,9 +46,9 @@ df_filter <- df |>
   )
 ```
 
-## Task b {layout-ncol=12} 
+## Row
 
-### result {.tabset column=8}
+### {.tabset}
 
 #### Welch t test
 
@@ -80,14 +82,23 @@ df_filter |>
   geom_density(alpha = 0.35) +
   labs(x = "Vote Average", y = "Density", fill = "Group")
 ```
-### Task b explaination {column=4}
 
-This chunk compares mean user ratings between English and Non-English films using a Welch two-sample t-test with a 90% confidence interval. In the filtered data, the English group contains 4,477 films with an average rating of about 6.09 (sd ≈ 1.13), whereas the Non-English group contains 298 films with an average rating of about 6.49 (sd ≈ 1.27). The test statistic is approximately −5.37 with roughly 329 degrees of freedom, yielding a p-value on the order of 10⁻⁷. The 90% confidence interval for the mean difference (English minus Non-English) is roughly \[−0.53, −0.28\], which excludes zero. Taken together with the density plot—which shows the Non-English distribution shifted to the right—these results indicate that Non-English films receive modestly but credibly higher average ratings than English-language films, and the magnitude of the difference is on the order of four-tenths of a rating point on a 0–10 scale.
+### Column 
+**What you’re seeing**
 
+We compare mean user ratings between English and Non-English films with a Welch two-sample t-test (90% CI).
 
-## Task c {layout-ncol=12}
+**How to read it**
 
-### result {.tabset column=8}
+If the 90% CI for (English − Non-English) excludes 0, the group means differ credibly. The density plot shows where each group’s ratings concentrate.
+
+**Takeaway**
+
+Ratings differences are modest in size but can be statistically meaningful. Direction = sign of the mean difference; magnitude ≈ fraction of a rating point (0–10 scale).
+
+## Row
+
+### {.tabset}
 
 #### graph
 
@@ -105,7 +116,9 @@ df_c |>
   labs(x = "Release decade", y = "log(Revenue + 1)",
        title = "Distribution of log(Revenue+1) by decade")
 ```
+
 #### summary
+
 ```{r}
 df_c |>
   count(release_decade, sort = TRUE)
@@ -130,15 +143,28 @@ tbl_c <- df_c |>
   )
 tbl_c
 ```
-### Task c explaination {column=4}
 
-This block examines decade differences in revenue on a log scale. The boxplot of log(Revenue + 1) by release_decade suggests modest shifts across decades, and the one-way ANOVA formalizes that pattern by testing equality of decade means. Tukey’s 90% confidence intervals then identify which specific decade pairs differ; interpret any pair whose interval excludes zero as a credible difference at the assignment’s 90% level, and read the sign of the contrast to determine which decade has the higher mean.
+### Column 
+**What you’re seeing**
+
+Boxplots of log(Revenue+1) by decade, followed by a one-way ANOVA and Tukey 90% CIs for pairwise contrasts.
+
+**How to read it**
+
+ANOVA tells you whether any decade means differ. Tukey intervals show which pairs differ; intervals not crossing 0 indicate a credible gap and the sign shows which decade is higher.
+
+
+**Takeaway**
+Revenue levels on the log scale shift across decades. Use Tukey results to pinpoint the decades driving the difference.
 
 # Task D&E
 
 ## Task d
-### result {.tabset}
+
+### {.tabset}
+
 #### summary
+
 ```{r}
 df_d <- df_filter |>
   filter(!is.na(english_group)) |>
@@ -154,7 +180,9 @@ tab_wide <- df_d |>
 
 tab_wide 
 ```
+
 #### test
+
 ```{r}
 
 a <- tab_wide |> filter(english_group == "English")     |> pull(profit)
@@ -189,7 +217,9 @@ tibble::tibble(
   ci90_upr = c(NA, NA, rd_ci[2], RR_ci[2], OR_ci[2])
 )
 ```
+
 #### proportion graph
+
 ```{r}
 df_d |>
   mutate(profit = factor(profit, levels = c(0,1), labels = c("Not profit","Profit"))) |>
@@ -204,12 +234,17 @@ df_d |>
        title = "Profit vs Not profit proportion by group")
 
 ```
-### task d expalianation
+
+### Column
+
 This block evaluates whether profitability differs by language using a 2×2 table with profit = I(revenue \> budget) as the outcome and english_group as the exposure. We report three effect measures with 90% confidence intervals—risk difference (RD), relative risk (RR), and odds ratio (OR). A 90% CI for RD that excludes zero (and RR/OR intervals that exceed one) indicates English-language films have a credibly higher probability of being profitable; if the intervals include the null values, the data do not provide sufficient evidence of a difference at the 90% level.
 
-## Task e
-### result {.tabset}
+## Row {height=50%}
+
+### {.tabset}
+
 #### heatmap
+
 ```{r}
 top_k <- 5
 
@@ -257,11 +292,15 @@ xtab_counts <- df_gen_long |>
   tidyr::pivot_wider(names_from = genre, values_from = n, values_fill = 0) |>
   arrange(factor(release_decade, levels = c("1980s","1990s","2000s","2010s","2020s")))
 ```
+
 #### Counts table
+
 ```{r}
 xtab_counts  
 ```
+
 #### Row wise
+
 ```{r}
 
 xtab_rowprop <- xtab_counts |>
@@ -279,5 +318,7 @@ mat_counts <- xtab_counts |>
 
 chisq_res <- chisq.test(mat_counts) 
 ```
-### Task E explaination
-This chunk expands multi-label genres into a long format so each film contributes to all of its tags, selects the Top-K genres by overall frequency, and then maps color to the mean of log(Revenue + 1) within each decade–genre cell. Darker tiles indicate decade–genre combinations associated with higher average revenues on the log scale. The follow-up cross-tabulation reports counts by decade and genre together with row-wise proportions, which show how the composition of popular genres shifts over time (for example, Drama typically occupies the largest share and Comedy the second largest, while smaller genres fluctuate in relative weight). A Pearson chi-square test applied to the count table assesses whether decade and genre are independent; the test rejects independence at conventional levels, implying that the distribution of genres changes across decades. Because the heatmap summarizes average log revenue rather than counts, and because each film contributes to all of its genres, these EDA results should be interpreted descriptively: they highlight where revenue tends to be stronger without implying mutually exclusive group membership or causal effects.
+
+### Column
+
+This chunk converts multi-label genres to long form (each film counted under all its tags), selects Top-K genres by overall frequency, and draws a heatmap of mean log(Revenue+1) for each decade × genre cell—darker tiles indicate higher averages. A follow-up cross-tab with row-wise proportions shows that genre mix shifts across decades, and a Pearson chi-square on the counts rejects independence, implying composition changes over time. Because the heatmap summarizes means (not counts) and films appear under multiple tags, treat these patterns as descriptive, not causal or mutually exclusive.
